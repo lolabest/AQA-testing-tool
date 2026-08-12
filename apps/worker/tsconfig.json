@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/ai-core" },
+    { "path": "../../packages/database" },
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/security" },
+    { "path": "../../packages/test-compiler" },
+    { "path": "../../packages/test-ir" },
+    { "path": "../../packages/test-runtime" }
+  ]
+}

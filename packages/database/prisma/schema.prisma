@@ -468,20 +468,20 @@ model TestCase {
 }
 
 model TestCaseVersion {
-  id            String         @id @default(uuid()) @db.Uuid
-  revision      Int
-  title         String
-  description   String?
-  status        TestCaseStatus
-  riskLevel     RiskLevel
-  intent        Json
-  tags          Json
-  compiledCode  String?
+  id               String         @id @default(uuid()) @db.Uuid
+  revision         Int
+  title            String
+  description      String?
+  status           TestCaseStatus
+  riskLevel        RiskLevel
+  intent           Json
+  tags             Json
+  compiledCode     String?
   compiledChecksum String?
-  compilerVersion String?
-  schemaVersion String?
-  changeSummary String?
-  createdAt     DateTime       @default(now())
+  compilerVersion  String?
+  schemaVersion    String?
+  changeSummary    String?
+  createdAt        DateTime       @default(now())
 
   workspaceId String    @db.Uuid
   testCaseId  String    @db.Uuid

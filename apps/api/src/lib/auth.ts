@@ -9,7 +9,7 @@ export interface AuthUser {
   displayName: string;
 }
 
-export interface AuthContext {
+export interface RequestAuthContext {
   user: AuthUser;
   workspaceId: string;
   role: Role;
@@ -24,7 +24,7 @@ declare module "@fastify/jwt" {
 
 declare module "fastify" {
   interface FastifyRequest {
-    auth?: AuthContext;
+    auth?: RequestAuthContext;
     correlationId: string;
   }
 }
@@ -71,7 +71,7 @@ export async function requireAuth(
     throw new Error("workspace_forbidden");
   }
 
-  const auth: AuthContext = {
+  const auth: RequestAuthContext = {
     user: {
       id: membership.user.id,
       email: membership.user.email,

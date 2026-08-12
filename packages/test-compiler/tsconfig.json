@@ -5,6 +5,16 @@
     "rootDir": "src",
     "composite": true
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../test-ir" }]
+  "include": [
+    "src/**/*"
+  ],
+  "references": [
+    {
+      "path": "../test-ir"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "vitest.config.ts"
+  ]
 }
