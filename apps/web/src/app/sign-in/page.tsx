@@ -38,11 +38,20 @@ export default function SignInPage() {
         throw new Error(detail ?? "Sign-in failed.");
       }
 
-      const target =
-        typeof window === "undefined"
-          ? "/"
-          : new URLSearchParams(window.location.search).get("next") ?? "/";
-      router.replace(target.startsWith("/") ? target : "/");
+      const params = new URLSearchParams(window.location.search);
+      let target = params.get("next") ?? "/";
+      if (!target.startsWith("/")) {
+        target = "/";
+      }
+      const ingress = params.get("_ingress_token");
+      if (ingress) {
+        const url = new URL(target, window.location.origin);
+        if (!url.searchParams.has("_ingress_token")) {
+          url.searchParams.set("_ingress_token", ingress);
+        }
+        target = `${url.pathname}${url.search}`;
+      }
+      router.replace(target);
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
