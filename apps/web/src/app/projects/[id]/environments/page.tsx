@@ -37,7 +37,8 @@ export default function EnvironmentsPage() {
   }, [projectId]);
 
   useEffect(() => {
-    void load();
+    const pending = setTimeout(() => void load(), 0);
+    return () => clearTimeout(pending);
   }, [load]);
 
   async function create(event: FormEvent<HTMLFormElement>) {
