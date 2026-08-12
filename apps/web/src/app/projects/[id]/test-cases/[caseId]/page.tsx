@@ -65,7 +65,11 @@ export default async function TestCaseDetailPage({
             {testCase.description ?? "Review the structured intent before approval."}
           </p>
         </div>
-        <TestCaseActions projectId={id} testCaseId={caseId} />
+        <TestCaseActions
+          projectId={id}
+          testCaseId={caseId}
+          status={testCase.status}
+        />
       </header>
 
       <div className="editor-layout">
