@@ -947,6 +947,24 @@ export async function buildApp(
     },
   );
 
+  app.get(
+    "/api/v1/projects/:id/schedules",
+    { preHandler: authenticate, schema: { tags: ["schedules"] } },
+    async (request) => {
+      const { id } = IdParams.parse(request.params);
+      const access = await projectAccess(request, id);
+      const items = await db.schedule.findMany({
+        where: { projectId: id, workspaceId: access.workspaceId, deletedAt: null },
+        include: {
+          testSuite: { select: { id: true, name: true } },
+          environment: { select: { id: true, name: true } },
+        },
+        orderBy: [{ enabled: "desc" }, { name: "asc" }],
+      });
+      return { items };
+    },
+  );
+
   app.post(
     "/api/v1/projects/:id/test-plans/generate",
     { preHandler: authenticate, schema: { tags: ["test-plans"] } },

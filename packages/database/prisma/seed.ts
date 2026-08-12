@@ -495,6 +495,38 @@ async function main(): Promise<void> {
     update: { position: 1, enabled: true },
   });
 
+  await prisma.schedule.upsert({
+    where: {
+      projectId_name: {
+        projectId: project.id,
+        name: "Nightly smoke",
+      },
+    },
+    create: {
+      workspaceId: workspace.id,
+      projectId: project.id,
+      testSuiteId: suite.id,
+      environmentId: environment.id,
+      name: "Nightly smoke",
+      cron: "0 2 * * *",
+      timezone: "UTC",
+      enabled: true,
+      nextRunAt: new Date("2026-08-13T02:00:00.000Z"),
+      createdById: user.id,
+      updatedById: user.id,
+    },
+    update: {
+      testSuiteId: suite.id,
+      environmentId: environment.id,
+      cron: "0 2 * * *",
+      timezone: "UTC",
+      enabled: true,
+      nextRunAt: new Date("2026-08-13T02:00:00.000Z"),
+      updatedById: user.id,
+      deletedAt: null,
+    },
+  });
+
   const completedRunId = "10000000-0000-4000-8000-000000000001";
   const failedRunId = "10000000-0000-4000-8000-000000000002";
   const completedAttemptId = "20000000-0000-4000-8000-000000000001";
