@@ -84,12 +84,14 @@ export function useApiObject<T extends object>(path: string): ResourceState<T> {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const reload = useCallback(() => setRevision((value) => value + 1), []);
+  const reload = useCallback(() => {
+    setLoading(true);
+    setError("");
+    setRevision((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError("");
     api<unknown>(path)
       .then((payload) => {
         if (active) setData(unwrapObject<T>(payload));
@@ -115,12 +117,14 @@ export function useApiList<T>(path: string): ResourceState<T[]> {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const reload = useCallback(() => setRevision((value) => value + 1), []);
+  const reload = useCallback(() => {
+    setLoading(true);
+    setError("");
+    setRevision((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError("");
     api<unknown>(path)
       .then((payload) => {
         if (active) setData(unwrapList<T>(payload));

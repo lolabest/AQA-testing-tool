@@ -25,8 +25,6 @@ export default function EnvironmentsPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
     try {
       setEnvironments(
         unwrapList<Environment>(await api(`/projects/${projectId}/environments`)),
@@ -68,6 +66,7 @@ export default function EnvironmentsPage() {
       });
       event.currentTarget.reset();
       setShowForm(false);
+      setLoading(true);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create environment.");
