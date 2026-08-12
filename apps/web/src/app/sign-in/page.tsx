@@ -8,7 +8,7 @@ import { Button, Field, Input } from "@testpilot/ui";
 export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("qa@testpilot.local");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("TestPilot1!");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,7 +29,13 @@ export default function SignInPage() {
       };
 
       if (!response.ok) {
-        throw new Error(payload.message ?? payload.error ?? "Sign-in failed.");
+        const detail = payload.message ?? payload.error;
+        if (response.status >= 500 && !detail) {
+          throw new Error(
+            "Sign-in service is temporarily unavailable. Refresh and try again.",
+          );
+        }
+        throw new Error(detail ?? "Sign-in failed.");
       }
 
       const target =
