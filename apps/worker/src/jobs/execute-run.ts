@@ -201,12 +201,22 @@ export async function processExecuteRun(
     await assertSafeUrl(baseUrl, policy);
 
     const selectedIds = new Set(runConfig.testCaseIds ?? []);
-    const cases = (run.testSuite?.items ?? [])
-      .map((item) => item.testCase)
-      .filter(
-        (testCase) =>
-          selectedIds.size === 0 || selectedIds.has(testCase.id),
-      );
+    const cases =
+      selectedIds.size > 0
+        ? await database.testCase.findMany({
+            where: {
+              id: { in: [...selectedIds] },
+              workspaceId: run.workspaceId,
+              projectId: run.projectId,
+              deletedAt: null,
+            },
+            include: { versions: true },
+            orderBy: { key: "asc" },
+          })
+        : (run.testSuite?.items ?? []).map((item) => item.testCase);
+    if (selectedIds.size > 0 && cases.length !== selectedIds.size) {
+      throw new Error("One or more run tests are unavailable");
+    }
     if (cases.length === 0) throw new Error("The run contains no enabled tests");
 
     const prepared: Array<{
@@ -324,7 +334,9 @@ export async function processExecuteRun(
     }
     const results: Array<{
       testResultId: string;
+      finalAttemptId: string;
       reportedOutcome: AttemptOutcome;
+      attachmentPaths: Set<string>;
     }> = [];
     for (const { testCase, version } of prepared) {
       const execution =
@@ -389,15 +401,29 @@ export async function processExecuteRun(
             attempts: attempts.length,
             errors: attempts
               .map((attempt) => attempt.error?.message)
-              .filter(Boolean),
+              .filter((message): message is string => message !== undefined),
           },
         },
       });
-      results.push({ testResultId: testResult.id, reportedOutcome });
+      results.push({
+        testResultId: testResult.id,
+        finalAttemptId: finalAttempt.id,
+        reportedOutcome,
+        attachmentPaths: new Set(
+          attempts.flatMap((attempt) =>
+            attempt.attachments.flatMap((attachment) =>
+              attachment.path ? [resolve(attachment.path)] : [],
+            ),
+          ),
+        ),
+      });
     }
 
     const artifacts = await collectArtifacts(artifactsDirectory);
     for (const artifact of artifacts) {
+      const owner = results.find((result) =>
+        result.attachmentPaths.has(resolve(artifact.absolutePath)),
+      );
       const uploaded = await storage.upload(
         `${run.workspaceId}/${run.projectId}/${run.id}/${randomUUID()}`,
         artifact,
@@ -407,6 +433,8 @@ export async function processExecuteRun(
           workspaceId: run.workspaceId,
           projectId: run.projectId,
           testRunId: run.id,
+          testAttemptId: owner?.finalAttemptId,
+          testResultId: owner?.testResultId,
           kind: artifact.kind,
           name: artifact.name,
           storageUrl: uploaded.storageUrl,
