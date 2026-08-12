@@ -356,40 +356,42 @@ async function main(): Promise<void> {
     tags: ["smoke", "authentication"],
     preconditions: ["A registered demo customer exists"],
     requiredRole: "customer",
-    requiredData: { credentials: "DEMO_CREDENTIALS" },
+    requiredData: {
+      email: "user@demo.local",
+      password: "User123!",
+    },
     environmentAssumptions: ["Demo Shop is reachable at the environment URL"],
     actions: [
       { type: "navigate", url: "/login" },
       {
         type: "fill",
         target: { strategy: "label", value: "Email" },
-        value: DEMO_EMAIL,
+        value: "{{email}}",
       },
       {
         type: "fill",
         target: { strategy: "label", value: "Password" },
-        value: "{{secrets.DEMO_CREDENTIALS.password}}",
+        value: "{{password}}",
       },
       {
         type: "click",
-        target: { strategy: "role", value: "button", name: "Sign in" },
+        target: { strategy: "role", value: "button", name: "Log in" },
       },
     ],
     assertions: [
-      { type: "assertUrl", expected: "/account" },
+      { type: "assertUrl", expected: "**/products" },
       {
         type: "assertVisible",
         target: {
           strategy: "role",
           value: "heading",
-          name: "Your account",
+          name: "Products",
         },
       },
     ],
     cleanupActions: [],
     destructive: false,
-    expectedOutcome:
-      "The customer reaches the account page and sees account navigation.",
+    expectedOutcome: "The customer reaches the products page after login.",
     traceability: {
       source: "REQ-LOGIN",
       notes: "Approved deterministic demo intent",
@@ -668,7 +670,7 @@ async function main(): Promise<void> {
       summary: "Login submit control could not be located.",
       details: {
         failedStep: 4,
-        locator: { strategy: "role", value: "button", name: "Sign in" },
+        locator: { strategy: "role", value: "button", name: "Log in" },
       },
     },
     update: {
