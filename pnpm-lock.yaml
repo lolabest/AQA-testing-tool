@@ -21,6 +21,21 @@ importers:
         specifier: ^3.0.8
         version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.12)
 
+  apps/demo-sut:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.20.1
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.12
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.8
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.12)
+
   packages/ai-core:
     dependencies:
       '@anthropic-ai/sdk':

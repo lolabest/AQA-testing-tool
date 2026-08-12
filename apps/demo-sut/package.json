@@ -1,0 +1,23 @@
+{
+  "name": "@testpilot/demo-sut",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local system under test for TestPilot AI end-to-end demonstrations",
+  "main": "./dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  }
+}
