@@ -17,12 +17,7 @@ export function HealingActions({ proposalId }: { proposalId: string }) {
       await api(`/healing-proposals/${proposalId}/decision`, {
         method: "POST",
         body: { decision, note: `UI ${decision.toLowerCase()}` },
-      }).catch(async () =>
-        api(`/healing/${proposalId}/decision`, {
-          method: "POST",
-          body: { decision, note: `UI ${decision.toLowerCase()}` },
-        }),
-      );
+      });
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Decision failed");

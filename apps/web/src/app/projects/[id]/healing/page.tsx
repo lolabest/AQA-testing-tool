@@ -24,9 +24,7 @@ export default async function HealingPage({
   let error = "";
   try {
     proposals = unwrapList<Proposal>(
-      await api(`/projects/${id}/healing-proposals`).catch(async () =>
-        api(`/projects/${id}/healing`),
-      ),
+      await api(`/projects/${id}/healing-proposals`),
     );
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load proposals";
