@@ -12,7 +12,7 @@ const compat = new FlatCompat({
 const config = [
   {
     ignores: [
-      ".next/**",
+      ".next*/**",
       "next-env.d.ts",
       "coverage/**",
       "playwright-report/**",
