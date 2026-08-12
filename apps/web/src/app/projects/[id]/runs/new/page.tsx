@@ -2,7 +2,7 @@
 
 import { AppShell } from "@/components/app-shell";
 import { api, unwrapList, unwrapObject } from "@/lib/api";
-import { Button, EmptyState, Field, Select } from "@testpilot/ui";
+import { Button, EmptyState, Field, Select, Spinner } from "@testpilot/ui";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -21,6 +21,7 @@ export default function NewRunPage() {
   const [suiteId, setSuiteId] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
@@ -43,6 +44,8 @@ export default function NewRunPage() {
         setSuiteId(nextSuites[0]?.id ?? "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load run form");
+      } finally {
+        setLoading(false);
       }
     })();
   }, [projectId]);
@@ -57,7 +60,7 @@ export default function NewRunPage() {
           method: "POST",
           body: {
             environmentId,
-            suiteId: suiteId || undefined,
+            suiteId,
             testCaseIds: suiteId ? undefined : testCaseIds,
             browsers: ["chromium"],
             allowDestructive: false,
@@ -79,10 +82,17 @@ export default function NewRunPage() {
           <h1>Create run</h1>
         </div>
       </header>
-      {environments.length === 0 && !error ? (
+      {loading ? (
+        <Spinner label="Loading run configuration…" />
+      ) : environments.length === 0 && !error ? (
         <EmptyState
           title="No environments"
           description="Configure an environment before starting a run."
+        />
+      ) : suites.length === 0 && !error ? (
+        <EmptyState
+          title="No test suites"
+          description="Create a suite with at least one approved test case before starting a run."
         />
       ) : (
         <form className="form-panel" onSubmit={submit}>
@@ -99,12 +109,13 @@ export default function NewRunPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Suite (optional)">
+          <Field label="Test suite">
             <Select
               value={suiteId}
               onChange={(event) => setSuiteId(event.target.value)}
+              required
             >
-              <option value="">Approved cases in project</option>
+              <option value="">Select a suite</option>
               {suites.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
