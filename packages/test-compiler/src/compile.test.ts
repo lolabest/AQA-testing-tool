@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileTestIntent, COMPILER_VERSION } from "../compile.js";
+import { compileTestIntent, COMPILER_VERSION } from "./compile.js";
 
 const intent = {
   schemaVersion: "1.0.0",

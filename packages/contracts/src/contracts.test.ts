@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateProjectSchema, SignInSchema } from "../schemas.js";
+import { CreateProjectSchema, SignInSchema } from "./schemas.js";
 
 describe("contracts", () => {
   it("validates sign-in", () => {

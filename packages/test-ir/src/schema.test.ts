@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateTestIntent, isSafeTestIntent } from "../schema.js";
+import { validateTestIntent, isSafeTestIntent } from "./schema.js";
 
 const valid = {
   schemaVersion: "1.0.0",

@@ -3,23 +3,23 @@ import {
   assertPermission,
   hasPermission,
   AuthorizationError,
-} from "../rbac.js";
+} from "./rbac.js";
 import {
   canTransitionTestCase,
   isExecutableInProtectedEnvironment,
   statusAfterMaterialChange,
   transitionTestCase,
-} from "../test-case-lifecycle.js";
+} from "./test-case-lifecycle.js";
 import {
   canTransitionTestRun,
   isTerminalRunStatus,
   transitionTestRun,
-} from "../test-run-lifecycle.js";
-import { resolveReportedOutcome, shouldQuarantine } from "../flakiness.js";
-import { classifyCoverage, weightedCoverageScore } from "../coverage.js";
-import { scoreTestProposal } from "../scoring.js";
-import { canAutoApplyHealing } from "../healing.js";
-import { evaluateQualityGates } from "../quality-gates.js";
+} from "./test-run-lifecycle.js";
+import { resolveReportedOutcome, shouldQuarantine } from "./flakiness.js";
+import { classifyCoverage, weightedCoverageScore } from "./coverage.js";
+import { scoreTestProposal } from "./scoring.js";
+import { canAutoApplyHealing } from "./healing.js";
+import { evaluateQualityGates } from "./quality-gates.js";
 
 describe("rbac", () => {
   it("grants owner all permissions", () => {

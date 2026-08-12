@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { SecretBox, fingerprintSecret } from "../encryption.js";
-import { redactHeaders, redactText, redactObject } from "../redaction.js";
-import { assertSafeUrl, isPrivateIp, SsrfError } from "../ssrf.js";
-import { signWebhookPayload, verifyWebhookSignature } from "../webhooks.js";
+import { SecretBox, fingerprintSecret } from "./encryption.js";
+import { redactHeaders, redactText, redactObject } from "./redaction.js";
+import { assertSafeUrl, isPrivateIp, SsrfError } from "./ssrf.js";
+import { signWebhookPayload, verifyWebhookSignature } from "./webhooks.js";
 
 const KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
