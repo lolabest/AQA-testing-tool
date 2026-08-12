@@ -1,5 +1,5 @@
 import { Queue, Worker, type Job } from "bullmq";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { prisma } from "@testpilot/database";
 import { workerConfigFromEnv } from "./config.js";
 import { processCompileTests } from "./jobs/compile-tests.js";
