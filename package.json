@@ -1,0 +1,43 @@
+{
+  "name": "testpilot-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TestPilot AI — production-grade AI-assisted automated testing platform",
+  "packageManager": "pnpm@10.33.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test --filter=./packages/*",
+    "test:unit": "turbo run test --filter=./packages/*",
+    "test:integration": "turbo run test:integration --filter=@testpilot/api --filter=@testpilot/database",
+    "test:e2e": "turbo run test:e2e --filter=@testpilot/web",
+    "db:migrate": "pnpm --filter @testpilot/database migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @testpilot/database migrate:deploy",
+    "db:seed": "pnpm --filter @testpilot/database seed",
+    "db:generate": "pnpm --filter @testpilot/database generate",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "bcrypt",
+      "sharp",
+      "msgpackr-extract"
+    ]
+  }
+}

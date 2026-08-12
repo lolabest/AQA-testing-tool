@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: Demo Shop API
+  version: 1.0.0
+paths:
+  /api/auth/login:
+    post:
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Authenticated
+  /api/products:
+    get:
+      summary: List products
+      responses:
+        "200":
+          description: Product list
+    post:
+      summary: Create product
+      responses:
+        "201":
+          description: Created
+  /api/checkout:
+    post:
+      summary: Checkout cart
+      responses:
+        "200":
+          description: Order created

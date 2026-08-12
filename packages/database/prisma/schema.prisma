@@ -1,0 +1,1101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  QA_ENGINEER
+  DEVELOPER
+  VIEWER
+}
+
+enum TestCaseStatus {
+  DRAFT
+  GENERATED
+  VALIDATED
+  APPROVED
+  ACTIVE
+  DISABLED
+  ARCHIVED
+}
+
+enum TestRunStatus {
+  QUEUED
+  PREPARING
+  RUNNING
+  COLLECTING_ARTIFACTS
+  TRIAGING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+}
+
+enum AttemptOutcome {
+  PASSED
+  FAILED
+  SKIPPED
+  BLOCKED
+  TIMED_OUT
+  CANCELLED
+  FLAKY
+}
+
+enum FailureClassification {
+  PRODUCT_DEFECT
+  TEST_DEFECT
+  ENVIRONMENT_ISSUE
+  TEST_DATA_ISSUE
+  FLAKY_BEHAVIOR
+  UNKNOWN
+}
+
+enum EnvironmentKind {
+  LOCAL
+  TEST
+  STAGING
+  PRODUCTION_LIKE
+}
+
+enum ArtifactKind {
+  SCREENSHOT
+  VIDEO
+  TRACE
+  LOG
+  NETWORK
+  REPORT
+  DOM_SNAPSHOT
+  OTHER
+}
+
+enum HealingProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  EXPIRED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AiProviderKind {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+  AZURE_OPENAI
+  AWS_BEDROCK
+  MOCK
+}
+
+model Workspace {
+  id        String    @id @default(uuid()) @db.Uuid
+  key       String    @unique
+  name      String
+  slug      String    @unique
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  createdById String? @db.Uuid
+  updatedById String? @db.Uuid
+  createdBy   User?   @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("WorkspaceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  memberships         Membership[]
+  projects            Project[]
+  environments        Environment[]
+  environmentSecrets  EnvironmentSecret[]
+  requirements        Requirement[]
+  requirementVersions RequirementVersion[]
+  testPlans           TestPlan[]
+  testCases           TestCase[]
+  testCaseVersions    TestCaseVersion[]
+  testSuites          TestSuite[]
+  testSuiteItems      TestSuiteItem[]
+  testRuns            TestRun[]
+  testRunShards       TestRunShard[]
+  testAttempts        TestAttempt[]
+  testResults         TestResult[]
+  artifacts           Artifact[]
+  failureAnalyses     FailureAnalysis[]
+  healingProposals    HealingProposal[]
+  aiConfigurations    AiConfiguration[]
+  aiInvocations       AiInvocation[]
+  schedules           Schedule[]
+  auditEvents         AuditEvent[]
+  apiSpecs            ApiSpec[]
+  applicationMaps     ApplicationMap[]
+  webhookEndpoints    WebhookEndpoint[]
+  webhookDeliveries   WebhookDelivery[]
+  sessions            Session[]
+  qualityGateConfigs  QualityGateConfig[]
+  quarantineRecords   QuarantineRecord[]
+
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String
+  displayName  String
+  active       Boolean   @default(true)
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  memberships      Membership[]       @relation("MembershipUser")
+  sessions         Session[]
+  auditEvents      AuditEvent[]
+  reviewedFailures FailureAnalysis[]  @relation("FailureAnalysisReviewer")
+  reviewedHealings HealingProposal[]  @relation("HealingProposalReviewer")
+  appliedHealings  HealingProposal[]  @relation("HealingProposalApplier")
+  quarantinedTests QuarantineRecord[] @relation("QuarantinedBy")
+  releasedTests    QuarantineRecord[] @relation("ReleasedBy")
+
+  createdWorkspaces       Workspace[]          @relation("WorkspaceCreatedBy")
+  updatedWorkspaces       Workspace[]          @relation("WorkspaceUpdatedBy")
+  createdMemberships      Membership[]         @relation("MembershipCreatedBy")
+  updatedMemberships      Membership[]         @relation("MembershipUpdatedBy")
+  createdProjects         Project[]            @relation("ProjectCreatedBy")
+  updatedProjects         Project[]            @relation("ProjectUpdatedBy")
+  createdEnvironments     Environment[]        @relation("EnvironmentCreatedBy")
+  updatedEnvironments     Environment[]        @relation("EnvironmentUpdatedBy")
+  createdSecrets          EnvironmentSecret[]  @relation("EnvironmentSecretCreatedBy")
+  updatedSecrets          EnvironmentSecret[]  @relation("EnvironmentSecretUpdatedBy")
+  createdRequirements     Requirement[]        @relation("RequirementCreatedBy")
+  updatedRequirements     Requirement[]        @relation("RequirementUpdatedBy")
+  requirementVersions     RequirementVersion[]
+  createdTestPlans        TestPlan[]           @relation("TestPlanCreatedBy")
+  updatedTestPlans        TestPlan[]           @relation("TestPlanUpdatedBy")
+  createdTestCases        TestCase[]           @relation("TestCaseCreatedBy")
+  updatedTestCases        TestCase[]           @relation("TestCaseUpdatedBy")
+  testCaseVersions        TestCaseVersion[]
+  createdTestSuites       TestSuite[]          @relation("TestSuiteCreatedBy")
+  updatedTestSuites       TestSuite[]          @relation("TestSuiteUpdatedBy")
+  createdSuiteItems       TestSuiteItem[]
+  createdTestRuns         TestRun[]
+  createdAiConfigurations AiConfiguration[]    @relation("AiConfigurationCreatedBy")
+  updatedAiConfigurations AiConfiguration[]    @relation("AiConfigurationUpdatedBy")
+  createdAiInvocations    AiInvocation[]
+  createdSchedules        Schedule[]           @relation("ScheduleCreatedBy")
+  updatedSchedules        Schedule[]           @relation("ScheduleUpdatedBy")
+  createdApiSpecs         ApiSpec[]            @relation("ApiSpecCreatedBy")
+  updatedApiSpecs         ApiSpec[]            @relation("ApiSpecUpdatedBy")
+  createdApplicationMaps  ApplicationMap[]     @relation("ApplicationMapCreatedBy")
+  updatedApplicationMaps  ApplicationMap[]     @relation("ApplicationMapUpdatedBy")
+  createdWebhookEndpoints WebhookEndpoint[]    @relation("WebhookEndpointCreatedBy")
+  updatedWebhookEndpoints WebhookEndpoint[]    @relation("WebhookEndpointUpdatedBy")
+  createdQualityGates     QualityGateConfig[]  @relation("QualityGateCreatedBy")
+  updatedQualityGates     QualityGateConfig[]  @relation("QualityGateUpdatedBy")
+
+  @@index([deletedAt])
+}
+
+model Membership {
+  id        String    @id @default(uuid()) @db.Uuid
+  role      Role
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  workspaceId String    @db.Uuid
+  userId      String    @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation("MembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("MembershipCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("MembershipUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model Project {
+  id          String    @id @default(uuid()) @db.Uuid
+  key         String
+  name        String
+  description String?
+  version     Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspaceId String    @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("ProjectUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  environments      Environment[]
+  requirements      Requirement[]
+  testPlans         TestPlan[]
+  testCases         TestCase[]
+  testSuites        TestSuite[]
+  testRuns          TestRun[]
+  artifacts         Artifact[]
+  healingProposals  HealingProposal[]
+  aiConfigurations  AiConfiguration[]
+  aiInvocations     AiInvocation[]
+  schedules         Schedule[]
+  apiSpecs          ApiSpec[]
+  applicationMaps   ApplicationMap[]
+  webhookEndpoints  WebhookEndpoint[]
+  qualityGateConfig QualityGateConfig?
+  quarantineRecords QuarantineRecord[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model Environment {
+  id        String          @id @default(uuid()) @db.Uuid
+  name      String
+  kind      EnvironmentKind
+  baseUrl   String
+  isDefault Boolean         @default(false)
+  config    Json            @default("{}")
+  version   Int             @default(1)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String    @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("EnvironmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("EnvironmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  secrets         EnvironmentSecret[]
+  testRuns        TestRun[]
+  schedules       Schedule[]
+  applicationMaps ApplicationMap[]
+
+  @@unique([projectId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model EnvironmentSecret {
+  id             String    @id @default(uuid()) @db.Uuid
+  key            String
+  encryptedValue Json
+  fingerprint    String?
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  workspaceId   String      @db.Uuid
+  environmentId String      @db.Uuid
+  createdById   String?     @db.Uuid
+  updatedById   String?     @db.Uuid
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  createdBy     User?       @relation("EnvironmentSecretCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?       @relation("EnvironmentSecretUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([environmentId, key])
+  @@index([workspaceId])
+  @@index([environmentId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model Requirement {
+  id                 String    @id @default(uuid()) @db.Uuid
+  key                String
+  title              String
+  description        String
+  acceptanceCriteria Json      @default("[]")
+  riskLevel          RiskLevel @default(MEDIUM)
+  status             String    @default("ACTIVE")
+  version            Int       @default(1)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String    @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("RequirementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("RequirementUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  versions  RequirementVersion[]
+  testCases TestCase[]
+
+  @@unique([projectId, key])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model RequirementVersion {
+  id                 String    @id @default(uuid()) @db.Uuid
+  revision           Int
+  title              String
+  description        String
+  acceptanceCriteria Json
+  riskLevel          RiskLevel
+  changeSummary      String?
+  createdAt          DateTime  @default(now())
+
+  workspaceId   String      @db.Uuid
+  requirementId String      @db.Uuid
+  createdById   String?     @db.Uuid
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  createdBy     User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([requirementId, revision])
+  @@index([workspaceId])
+  @@index([requirementId])
+  @@index([createdById])
+}
+
+model TestPlan {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  objective   Json      @default("{}")
+  status      String    @default("DRAFT")
+  version     Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String    @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("TestPlanCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("TestPlanUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  testCases  TestCase[]
+  testSuites TestSuite[]
+
+  @@unique([projectId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model TestCase {
+  id             String         @id @default(uuid()) @db.Uuid
+  key            String
+  title          String
+  description    String?
+  status         TestCaseStatus @default(DRAFT)
+  riskLevel      RiskLevel      @default(MEDIUM)
+  currentVersion Int            @default(1)
+  intent         Json
+  tags           Json           @default("[]")
+  version        Int            @default(1)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  workspaceId   String       @db.Uuid
+  projectId     String       @db.Uuid
+  testPlanId    String?      @db.Uuid
+  requirementId String?      @db.Uuid
+  createdById   String?      @db.Uuid
+  updatedById   String?      @db.Uuid
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testPlan      TestPlan?    @relation(fields: [testPlanId], references: [id], onDelete: SetNull)
+  requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  createdBy     User?        @relation("TestCaseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?        @relation("TestCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  versions          TestCaseVersion[]
+  suiteItems        TestSuiteItem[]
+  testAttempts      TestAttempt[]
+  testResults       TestResult[]
+  healingProposals  HealingProposal[]
+  quarantineRecords QuarantineRecord[]
+
+  @@unique([projectId, key])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testPlanId])
+  @@index([requirementId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model TestCaseVersion {
+  id               String         @id @default(uuid()) @db.Uuid
+  revision         Int
+  title            String
+  description      String?
+  status           TestCaseStatus
+  riskLevel        RiskLevel
+  intent           Json
+  tags             Json
+  compiledCode     String?
+  compiledChecksum String?
+  compilerVersion  String?
+  schemaVersion    String?
+  changeSummary    String?
+  createdAt        DateTime       @default(now())
+
+  workspaceId String    @db.Uuid
+  testCaseId  String    @db.Uuid
+  createdById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testCase    TestCase  @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  attempts TestAttempt[]
+
+  @@unique([testCaseId, revision])
+  @@index([workspaceId])
+  @@index([testCaseId])
+  @@index([createdById])
+  @@index([compiledChecksum])
+}
+
+model TestSuite {
+  id          String         @id @default(uuid()) @db.Uuid
+  key         String
+  name        String
+  description String?
+  status      TestCaseStatus @default(DRAFT)
+  version     Int            @default(1)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String    @db.Uuid
+  testPlanId  String?   @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testPlan    TestPlan? @relation(fields: [testPlanId], references: [id], onDelete: SetNull)
+  createdBy   User?     @relation("TestSuiteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("TestSuiteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  items     TestSuiteItem[]
+  testRuns  TestRun[]
+  schedules Schedule[]
+
+  @@unique([projectId, key])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testPlanId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model TestSuiteItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  position  Int
+  enabled   Boolean  @default(true)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  testSuiteId String    @db.Uuid
+  testCaseId  String    @db.Uuid
+  createdById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testSuite   TestSuite @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  testCase    TestCase  @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([testSuiteId, testCaseId])
+  @@unique([testSuiteId, position])
+  @@index([workspaceId])
+  @@index([testSuiteId])
+  @@index([testCaseId])
+  @@index([createdById])
+}
+
+model TestRun {
+  id           String        @id @default(uuid()) @db.Uuid
+  status       TestRunStatus @default(QUEUED)
+  trigger      String        @default("MANUAL")
+  config       Json          @default("{}")
+  totalTests   Int           @default(0)
+  passedTests  Int           @default(0)
+  failedTests  Int           @default(0)
+  skippedTests Int           @default(0)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  version      Int           @default(1)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  workspaceId   String      @db.Uuid
+  projectId     String      @db.Uuid
+  testSuiteId   String?     @db.Uuid
+  environmentId String      @db.Uuid
+  createdById   String?     @db.Uuid
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testSuite     TestSuite?  @relation(fields: [testSuiteId], references: [id], onDelete: SetNull)
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  createdBy     User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  shards    TestRunShard[]
+  attempts  TestAttempt[]
+  results   TestResult[]
+  artifacts Artifact[]
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testSuiteId])
+  @@index([environmentId])
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model TestRunShard {
+  id         String        @id @default(uuid()) @db.Uuid
+  shardIndex Int
+  status     TestRunStatus @default(QUEUED)
+  workerId   String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  error      Json?
+  version    Int           @default(1)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  workspaceId String    @db.Uuid
+  testRunId   String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testRun     TestRun   @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+
+  attempts TestAttempt[]
+
+  @@unique([testRunId, shardIndex])
+  @@index([workspaceId])
+  @@index([testRunId])
+  @@index([status])
+}
+
+model TestAttempt {
+  id            String          @id @default(uuid()) @db.Uuid
+  attemptNumber Int             @default(1)
+  outcome       AttemptOutcome?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  durationMs    Int?
+  error         Json?
+  metrics       Json            @default("{}")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  workspaceId       String           @db.Uuid
+  testRunId         String           @db.Uuid
+  testRunShardId    String?          @db.Uuid
+  testCaseId        String           @db.Uuid
+  testCaseVersionId String?          @db.Uuid
+  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testRun           TestRun          @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testRunShard      TestRunShard?    @relation(fields: [testRunShardId], references: [id], onDelete: SetNull)
+  testCase          TestCase         @relation(fields: [testCaseId], references: [id], onDelete: Restrict)
+  testCaseVersion   TestCaseVersion? @relation(fields: [testCaseVersionId], references: [id], onDelete: SetNull)
+
+  result    TestResult?
+  artifacts Artifact[]
+
+  @@unique([testRunId, testCaseId, attemptNumber])
+  @@index([workspaceId])
+  @@index([testRunId])
+  @@index([testRunShardId])
+  @@index([testCaseId])
+  @@index([testCaseVersionId])
+  @@index([outcome])
+}
+
+model TestResult {
+  id         String         @id @default(uuid()) @db.Uuid
+  outcome    AttemptOutcome
+  durationMs Int?
+  summary    String?
+  details    Json           @default("{}")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  workspaceId   String      @db.Uuid
+  testRunId     String      @db.Uuid
+  testAttemptId String      @unique @db.Uuid
+  testCaseId    String      @db.Uuid
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testRun       TestRun     @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testAttempt   TestAttempt @relation(fields: [testAttemptId], references: [id], onDelete: Cascade)
+  testCase      TestCase    @relation(fields: [testCaseId], references: [id], onDelete: Restrict)
+
+  artifacts       Artifact[]
+  failureAnalysis FailureAnalysis?
+
+  @@index([workspaceId])
+  @@index([testRunId])
+  @@index([testCaseId])
+  @@index([outcome])
+}
+
+model Artifact {
+  id          String       @id @default(uuid()) @db.Uuid
+  kind        ArtifactKind
+  name        String
+  storageUrl  String
+  contentType String?
+  sizeBytes   BigInt?
+  checksum    String?
+  metadata    Json         @default("{}")
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  workspaceId   String       @db.Uuid
+  projectId     String       @db.Uuid
+  testRunId     String       @db.Uuid
+  testAttemptId String?      @db.Uuid
+  testResultId  String?      @db.Uuid
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testRun       TestRun      @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testAttempt   TestAttempt? @relation(fields: [testAttemptId], references: [id], onDelete: SetNull)
+  testResult    TestResult?  @relation(fields: [testResultId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testRunId])
+  @@index([testAttemptId])
+  @@index([testResultId])
+  @@index([kind])
+}
+
+model FailureAnalysis {
+  id             String                @id @default(uuid()) @db.Uuid
+  classification FailureClassification @default(UNKNOWN)
+  confidence     Float
+  summary        String
+  rootCause      String?
+  evidence       Json                  @default("[]")
+  model          String?
+  reviewedAt     DateTime?
+  version        Int                   @default(1)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  workspaceId  String     @db.Uuid
+  testResultId String     @unique @db.Uuid
+  reviewedById String?    @db.Uuid
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  testResult   TestResult @relation(fields: [testResultId], references: [id], onDelete: Cascade)
+  reviewedBy   User?      @relation("FailureAnalysisReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  healingProposals HealingProposal[]
+
+  @@index([workspaceId])
+  @@index([reviewedById])
+  @@index([classification])
+}
+
+model HealingProposal {
+  id             String                @id @default(uuid()) @db.Uuid
+  status         HealingProposalStatus @default(PENDING)
+  originalIntent Json?
+  proposedIntent Json
+  evidence       Json                  @default("[]")
+  diff           Json                  @default("[]")
+  rationale      String
+  confidence     Float
+  riskLevel      RiskLevel             @default(MEDIUM)
+  reviewComment  String?
+  reviewedAt     DateTime?
+  appliedAt      DateTime?
+  version        Int                   @default(1)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  workspaceId       String          @db.Uuid
+  projectId         String          @db.Uuid
+  testCaseId        String          @db.Uuid
+  failureAnalysisId String          @db.Uuid
+  reviewedById      String?         @db.Uuid
+  appliedById       String?         @db.Uuid
+  workspace         Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testCase          TestCase        @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  failureAnalysis   FailureAnalysis @relation(fields: [failureAnalysisId], references: [id], onDelete: Cascade)
+  reviewedBy        User?           @relation("HealingProposalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  appliedBy         User?           @relation("HealingProposalApplier", fields: [appliedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testCaseId])
+  @@index([failureAnalysisId])
+  @@index([reviewedById])
+  @@index([appliedById])
+  @@index([status])
+}
+
+model AiConfiguration {
+  id                   String         @id @default(uuid()) @db.Uuid
+  name                 String
+  provider             AiProviderKind
+  model                String
+  encryptedCredentials Json?
+  settings             Json           @default("{}")
+  enabled              Boolean        @default(true)
+  version              Int            @default(1)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  deletedAt            DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String?   @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("AiConfigurationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("AiConfigurationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  invocations AiInvocation[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model AiInvocation {
+  id           String         @id @default(uuid()) @db.Uuid
+  provider     AiProviderKind
+  model        String
+  purpose      String
+  request      Json
+  response     Json?
+  inputTokens  Int?
+  outputTokens Int?
+  latencyMs    Int?
+  status       String
+  error        String?
+  relatedType  String?
+  relatedId    String?        @db.Uuid
+  createdAt    DateTime       @default(now())
+
+  workspaceId       String           @db.Uuid
+  projectId         String?          @db.Uuid
+  aiConfigurationId String?          @db.Uuid
+  createdById       String?          @db.Uuid
+  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project           Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  aiConfiguration   AiConfiguration? @relation(fields: [aiConfigurationId], references: [id], onDelete: SetNull)
+  createdBy         User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([aiConfigurationId])
+  @@index([createdById])
+  @@index([relatedType, relatedId])
+  @@index([createdAt])
+}
+
+model Schedule {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  cron      String
+  timezone  String    @default("UTC")
+  enabled   Boolean   @default(true)
+  config    Json      @default("{}")
+  nextRunAt DateTime?
+  lastRunAt DateTime?
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  workspaceId   String      @db.Uuid
+  projectId     String      @db.Uuid
+  testSuiteId   String      @db.Uuid
+  environmentId String      @db.Uuid
+  createdById   String?     @db.Uuid
+  updatedById   String?     @db.Uuid
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testSuite     TestSuite   @relation(fields: [testSuiteId], references: [id], onDelete: Cascade)
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  createdBy     User?       @relation("ScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?       @relation("ScheduleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testSuiteId])
+  @@index([environmentId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([nextRunAt])
+  @@index([deletedAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  action     String
+  entityType String
+  entityId   String?  @db.Uuid
+  metadata   Json     @default("{}")
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  actorId     String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model ApiSpec {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  format       String
+  sourceUrl    String?
+  content      String?
+  checksum     String?
+  parsedSchema Json?
+  status       String    @default("ACTIVE")
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String    @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("ApiSpecCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("ApiSpecUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model ApplicationMap {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  graph       Json
+  generatedAt DateTime  @default(now())
+  version     Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspaceId   String       @db.Uuid
+  projectId     String       @db.Uuid
+  environmentId String?      @db.Uuid
+  createdById   String?      @db.Uuid
+  updatedById   String?      @db.Uuid
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  createdBy     User?        @relation("ApplicationMapCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?        @relation("ApplicationMapUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([environmentId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model WebhookEndpoint {
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String
+  url             String
+  encryptedSecret Json?
+  events          Json      @default("[]")
+  enabled         Boolean   @default(true)
+  version         Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String?   @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("WebhookEndpointCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("WebhookEndpointUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deliveries WebhookDelivery[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model WebhookDelivery {
+  id             String    @id @default(uuid()) @db.Uuid
+  eventType      String
+  payload        Json
+  status         String    @default("PENDING")
+  attempts       Int       @default(0)
+  responseStatus Int?
+  responseBody   String?
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspaceId       String          @db.Uuid
+  webhookEndpointId String          @db.Uuid
+  workspace         Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  webhookEndpoint   WebhookEndpoint @relation(fields: [webhookEndpointId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([webhookEndpointId])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  lastSeenAt DateTime?
+  ipAddress  String?
+  userAgent  String?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userId      String     @db.Uuid
+  workspaceId String?    @db.Uuid
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([expiresAt])
+}
+
+model QualityGateConfig {
+  id         String    @id @default(uuid()) @db.Uuid
+  thresholds Json
+  enabled    Boolean   @default(true)
+  version    Int       @default(1)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  workspaceId String    @db.Uuid
+  projectId   String    @unique @db.Uuid
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("QualityGateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("QualityGateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedAt])
+}
+
+model QuarantineRecord {
+  id             String                 @id @default(uuid()) @db.Uuid
+  reason         String
+  classification FailureClassification?
+  active         Boolean                @default(true)
+  quarantinedAt  DateTime               @default(now())
+  expiresAt      DateTime?
+  releasedAt     DateTime?
+  releaseReason  String?
+  version        Int                    @default(1)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  workspaceId     String    @db.Uuid
+  projectId       String    @db.Uuid
+  testCaseId      String    @db.Uuid
+  quarantinedById String?   @db.Uuid
+  releasedById    String?   @db.Uuid
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  testCase        TestCase  @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  quarantinedBy   User?     @relation("QuarantinedBy", fields: [quarantinedById], references: [id], onDelete: SetNull)
+  releasedBy      User?     @relation("ReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([testCaseId])
+  @@index([quarantinedById])
+  @@index([releasedById])
+  @@index([active, expiresAt])
+}

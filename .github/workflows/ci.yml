@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.8-alpine
+        env:
+          POSTGRES_USER: testpilot
+          POSTGRES_PASSWORD: testpilot
+          POSTGRES_DB: testpilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testpilot -d testpilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://testpilot:testpilot@localhost:5432/testpilot?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-jwt-secret-at-least-32-characters-long
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      AI_DEFAULT_PROVIDER: mock
+      S3_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY_ID: testpilot
+      S3_SECRET_ACCESS_KEY: testpilotsecret
+      S3_BUCKET: testpilot-artifacts
+      S3_FORCE_PATH_STYLE: "true"
+      ALLOW_PRIVATE_NETWORK_TARGETS: "true"
+      SSRF_ALLOW_LOCALHOST: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @testpilot/database generate
+      - run: pnpm db:migrate:deploy
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm test:integration
+      - run: pnpm build
+      - name: Install Playwright Chromium
+        run: pnpm --filter @testpilot/worker exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+        continue-on-error: true

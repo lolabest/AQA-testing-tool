@@ -1,0 +1,4 @@
+ALTER TABLE "HealingProposal"
+ADD COLUMN "originalIntent" JSONB,
+ADD COLUMN "evidence" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN "diff" JSONB NOT NULL DEFAULT '[]';
