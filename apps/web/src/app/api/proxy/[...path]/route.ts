@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { API_BASE_URL } from "@/lib/api";
+import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +20,27 @@ const forwardedResponseHeaders = [
 
 async function forward(request: NextRequest, context: RouteContext) {
   const { path } = await context.params;
-  const token = (await cookies()).get("testpilot_token")?.value;
+  const cookieToken = (await cookies()).get(SESSION_COOKIE)?.value;
+  const headerAuth = request.headers.get("authorization");
+  const queryToken = request.nextUrl.searchParams.get("access_token");
   const target = new URL(path.map(encodeURIComponent).join("/"), `${API_BASE_URL}/`);
-  target.search = request.nextUrl.search;
+  // Do not forward the browser access_token query to the API.
+  const upstreamSearch = new URLSearchParams(request.nextUrl.search);
+  upstreamSearch.delete("access_token");
+  target.search = upstreamSearch.toString();
 
   const headers = new Headers();
   headers.set("accept", request.headers.get("accept") ?? "application/json");
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
-  if (token) headers.set("authorization", `Bearer ${token}`);
+
+  if (headerAuth) {
+    headers.set("authorization", headerAuth);
+  } else if (queryToken) {
+    headers.set("authorization", `Bearer ${queryToken}`);
+  } else if (cookieToken) {
+    headers.set("authorization", `Bearer ${cookieToken}`);
+  }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   const response = await fetch(target, {

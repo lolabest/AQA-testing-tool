@@ -1,8 +1,9 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
-import { Status } from "@/components/data-view";
-import { unwrapList } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
+import { ResourceError, Status, useApiList } from "@/components/data-view";
 import { EmptyState } from "@testpilot/ui";
+import { useParams } from "next/navigation";
 
 type Failure = {
   id: string;
@@ -17,21 +18,13 @@ type Failure = {
   };
 };
 
-export default async function FailureTriagePage({
-  params,
-}: {
-  params: Promise<{ id: string; runId: string }>;
-}) {
-  const { id, runId } = await params;
-  let failures: Failure[] = [];
-  let error = "";
-  try {
-    failures = unwrapList<Failure>(
-      await serverApi(`/projects/${id}/failure-analyses`),
-    ).filter((failure) => failure.testResult?.testRun?.id === runId);
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : "Could not load failure analyses.";
-  }
+export default function FailureTriagePage() {
+  const { id, runId } = useParams<{ id: string; runId: string }>();
+  const failureAnalyses = useApiList<Failure>(`/projects/${id}/failure-analyses`);
+  const failures =
+    failureAnalyses.data?.filter(
+      (failure) => failure.testResult?.testRun?.id === runId,
+    ) ?? [];
 
   return (
     <AppShell>
@@ -44,8 +37,13 @@ export default async function FailureTriagePage({
           </p>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Triage unavailable" description={error} />
+      {failureAnalyses.loading ? (
+        <p className="subtle">Loading failure analyses…</p>
+      ) : failureAnalyses.error ? (
+        <ResourceError
+          message={failureAnalyses.error}
+          retry={failureAnalyses.reload}
+        />
       ) : failures.length === 0 ? (
         <EmptyState
           title="No failures to triage"

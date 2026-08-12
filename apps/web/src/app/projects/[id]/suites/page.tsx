@@ -1,8 +1,9 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
-import { Status } from "@/components/data-view";
-import { unwrapList } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
+import { ResourceError, Status, useApiList } from "@/components/data-view";
 import { EmptyState } from "@testpilot/ui";
+import { useParams } from "next/navigation";
 
 type Suite = {
   id: string;
@@ -13,19 +14,9 @@ type Suite = {
   items?: Array<{ id: string; enabled: boolean }>;
 };
 
-export default async function SuitesPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  let suites: Suite[] = [];
-  let error = "";
-  try {
-    suites = unwrapList<Suite>(await serverApi(`/projects/${id}/suites`));
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : "Could not load suites.";
-  }
+export default function SuitesPage() {
+  const { id } = useParams<{ id: string }>();
+  const suites = useApiList<Suite>(`/projects/${id}/suites`);
 
   return (
     <AppShell>
@@ -36,9 +27,11 @@ export default async function SuitesPage({
           <p className="lede">Executable suites composed of reviewed test cases.</p>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Suites unavailable" description={error} />
-      ) : suites.length === 0 ? (
+      {suites.loading ? (
+        <p className="subtle">Loading suites…</p>
+      ) : suites.error ? (
+        <ResourceError message={suites.error} retry={suites.reload} />
+      ) : !suites.data?.length ? (
         <EmptyState
           title="No test suites"
           description="Create a suite from approved test cases before starting a run."
@@ -55,7 +48,7 @@ export default async function SuitesPage({
             </tr>
           </thead>
           <tbody>
-            {suites.map((suite) => (
+            {suites.data.map((suite) => (
               <tr key={suite.id}>
                 <td className="mono">{suite.key}</td>
                 <td>

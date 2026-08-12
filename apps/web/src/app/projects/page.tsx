@@ -1,21 +1,19 @@
-import { AppShell } from "@/components/app-shell";
-import { unwrapList } from "@/lib/api";
-import { serverApi as api } from "@/lib/server-api";
-import { EmptyState } from "@testpilot/ui";
+"use client";
+
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
+import { EmptyState } from "@testpilot/ui";
 
-type Project = { id: string; name: string; key: string; description?: string | null };
+import { AppShell } from "@/components/app-shell";
+import {
+  Entity,
+  ResourceError,
+  text,
+  useApiList,
+} from "@/components/data-view";
 
-export default async function ProjectsPage() {
-  let projects: Project[] = [];
-  let error = "";
-  try {
-    projects = unwrapList<Project>(await api("/projects"));
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load projects";
-  }
+export default function ProjectsPage() {
+  const projects = useApiList<Entity>("/projects");
 
   return (
     <AppShell>
@@ -25,9 +23,11 @@ export default async function ProjectsPage() {
           <h1>Projects</h1>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Unable to load projects" description={error} />
-      ) : projects.length === 0 ? (
+      {projects.loading ? (
+        <p className="subtle">Loading projects…</p>
+      ) : projects.error ? (
+        <ResourceError message={projects.error} retry={projects.reload} />
+      ) : !projects.data?.length ? (
         <EmptyState
           title="No projects"
           description="Seed the database or create a project via the API."
@@ -42,13 +42,15 @@ export default async function ProjectsPage() {
             </tr>
           </thead>
           <tbody>
-            {projects.map((project) => (
-              <tr key={project.id}>
+            {projects.data.map((project) => (
+              <tr key={text(project.id)}>
                 <td>
-                  <Link href={`/projects/${project.id}`}>{project.key}</Link>
+                  <Link href={`/projects/${text(project.id)}`}>
+                    {text(project.key)}
+                  </Link>
                 </td>
-                <td>{project.name}</td>
-                <td>{project.description ?? "—"}</td>
+                <td>{text(project.name)}</td>
+                <td>{text(project.description)}</td>
               </tr>
             ))}
           </tbody>

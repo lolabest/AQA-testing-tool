@@ -1,8 +1,9 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
-import { Status } from "@/components/data-view";
-import { unwrapList } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
+import { ResourceError, Status, useApiList } from "@/components/data-view";
 import { EmptyState } from "@testpilot/ui";
+import { useParams } from "next/navigation";
 
 type TestPlan = {
   id: string;
@@ -13,19 +14,9 @@ type TestPlan = {
   _count?: { testCases?: number; testSuites?: number };
 };
 
-export default async function TestPlansPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  let plans: TestPlan[] = [];
-  let error = "";
-  try {
-    plans = unwrapList<TestPlan>(await serverApi(`/projects/${id}/test-plans`));
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : "Could not load test plans.";
-  }
+export default function TestPlansPage() {
+  const { id } = useParams<{ id: string }>();
+  const plans = useApiList<TestPlan>(`/projects/${id}/test-plans`);
 
   return (
     <AppShell>
@@ -36,9 +27,11 @@ export default async function TestPlansPage({
           <p className="lede">Generated plans remain traceable to their source requirements.</p>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Test plans unavailable" description={error} />
-      ) : plans.length === 0 ? (
+      {plans.loading ? (
+        <p className="subtle">Loading test plans…</p>
+      ) : plans.error ? (
+        <ResourceError message={plans.error} retry={plans.reload} />
+      ) : !plans.data?.length ? (
         <EmptyState
           title="No test plans"
           description="Generate a plan from selected requirements to begin test design."
@@ -55,7 +48,7 @@ export default async function TestPlansPage({
             </tr>
           </thead>
           <tbody>
-            {plans.map((plan) => (
+            {plans.data.map((plan) => (
               <tr key={plan.id}>
                 <td>
                   <strong>{plan.name}</strong>

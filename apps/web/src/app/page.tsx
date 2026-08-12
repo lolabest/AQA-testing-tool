@@ -1,10 +1,12 @@
-import { AppShell } from "@/components/app-shell";
-import { unwrapList, unwrapObject } from "@/lib/api";
-import { serverApi as api } from "@/lib/server-api";
-import { Badge, EmptyState } from "@testpilot/ui";
-import Link from "next/link";
+"use client";
 
-export const dynamic = "force-dynamic";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { Badge, EmptyState, Spinner } from "@testpilot/ui";
+
+import { AppShell } from "@/components/app-shell";
+import { api, unwrapList, unwrapObject } from "@/lib/api";
 
 type Project = { id: string; name: string; key: string; description?: string | null };
 type Overview = {
@@ -30,20 +32,38 @@ type Overview = {
   testCasesByStatus?: Record<string, number>;
 };
 
-export default async function DashboardPage() {
-  let projects: Project[] = [];
-  let overview: Overview | null = null;
-  let error = "";
-  try {
-    projects = unwrapList<Project>(await api("/projects"));
-    if (projects[0]) {
-      overview = unwrapObject<Overview>(
-        await api(`/projects/${projects[0].id}/overview`),
-      );
-    }
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load dashboard";
-  }
+export default function DashboardPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const list = unwrapList<Project>(await api("/projects"));
+        let nextOverview: Overview | null = null;
+        if (list[0]) {
+          nextOverview = unwrapObject<Overview>(
+            await api(`/projects/${list[0].id}/overview`),
+          );
+        }
+        if (!active) return;
+        setProjects(list);
+        setOverview(nextOverview);
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Failed to load dashboard");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <AppShell>
@@ -58,7 +78,11 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {error ? (
+      {loading ? (
+        <div className="loading-row">
+          <Spinner label="Loading dashboard" />
+        </div>
+      ) : error ? (
         <EmptyState title="Dashboard unavailable" description={error} />
       ) : projects.length === 0 ? (
         <EmptyState

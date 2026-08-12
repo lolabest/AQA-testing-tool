@@ -1,10 +1,10 @@
-import { AppShell } from "@/components/app-shell";
-import { HealingActions } from "@/components/healing-actions";
-import { unwrapList } from "@/lib/api";
-import { serverApi as api } from "@/lib/server-api";
-import { Badge, EmptyState } from "@testpilot/ui";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { AppShell } from "@/components/app-shell";
+import { ResourceError, useApiList } from "@/components/data-view";
+import { HealingActions } from "@/components/healing-actions";
+import { Badge, EmptyState } from "@testpilot/ui";
+import { useParams } from "next/navigation";
 
 type Proposal = {
   id: string;
@@ -14,21 +14,9 @@ type Proposal = {
   riskLevel: string;
 };
 
-export default async function HealingPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  let proposals: Proposal[] = [];
-  let error = "";
-  try {
-    proposals = unwrapList<Proposal>(
-      await api(`/projects/${id}/healing-proposals`),
-    );
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load proposals";
-  }
+export default function HealingPage() {
+  const { id } = useParams<{ id: string }>();
+  const proposals = useApiList<Proposal>(`/projects/${id}/healing-proposals`);
 
   return (
     <AppShell>
@@ -41,9 +29,11 @@ export default async function HealingPage({
           </p>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Unable to load proposals" description={error} />
-      ) : proposals.length === 0 ? (
+      {proposals.loading ? (
+        <p className="subtle">Loading healing proposals…</p>
+      ) : proposals.error ? (
+        <ResourceError message={proposals.error} retry={proposals.reload} />
+      ) : !proposals.data?.length ? (
         <EmptyState
           title="No proposals"
           description="Healing proposals appear after failure triage suggests a safe locator or route change."
@@ -60,7 +50,7 @@ export default async function HealingPage({
             </tr>
           </thead>
           <tbody>
-            {proposals.map((item) => (
+            {proposals.data.map((item) => (
               <tr key={item.id}>
                 <td>
                   <Badge>{item.status}</Badge>

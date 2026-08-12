@@ -1,10 +1,10 @@
-import { AppShell } from "@/components/app-shell";
-import { GeneratePlanButton } from "@/components/generate-plan-button";
-import { unwrapList } from "@/lib/api";
-import { serverApi as api } from "@/lib/server-api";
-import { Badge, EmptyState } from "@testpilot/ui";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { AppShell } from "@/components/app-shell";
+import { ResourceError, useApiList } from "@/components/data-view";
+import { GeneratePlanButton } from "@/components/generate-plan-button";
+import { Badge, EmptyState } from "@testpilot/ui";
+import { useParams } from "next/navigation";
 
 type Requirement = {
   id: string;
@@ -14,21 +14,9 @@ type Requirement = {
   riskLevel: string;
 };
 
-export default async function RequirementsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  let requirements: Requirement[] = [];
-  let error = "";
-  try {
-    requirements = unwrapList<Requirement>(
-      await api(`/projects/${id}/requirements`),
-    );
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load requirements";
-  }
+export default function RequirementsPage() {
+  const { id } = useParams<{ id: string }>();
+  const requirements = useApiList<Requirement>(`/projects/${id}/requirements`);
 
   return (
     <AppShell>
@@ -37,16 +25,18 @@ export default async function RequirementsPage({
           <p className="eyebrow">Traceability</p>
           <h1>Requirements</h1>
         </div>
-        {requirements.length > 0 ? (
+        {requirements.data?.length ? (
           <GeneratePlanButton
             projectId={id}
-            requirementIds={requirements.map((item) => item.id)}
+            requirementIds={requirements.data.map((item) => item.id)}
           />
         ) : null}
       </header>
-      {error ? (
-        <EmptyState title="Unable to load requirements" description={error} />
-      ) : requirements.length === 0 ? (
+      {requirements.loading ? (
+        <p className="subtle">Loading requirements…</p>
+      ) : requirements.error ? (
+        <ResourceError message={requirements.error} retry={requirements.reload} />
+      ) : !requirements.data?.length ? (
         <EmptyState
           title="No requirements"
           description="Import natural-language requirements to begin planning."
@@ -62,7 +52,7 @@ export default async function RequirementsPage({
             </tr>
           </thead>
           <tbody>
-            {requirements.map((item) => (
+            {requirements.data.map((item) => (
               <tr key={item.id}>
                 <td>{item.key}</td>
                 <td>{item.title}</td>

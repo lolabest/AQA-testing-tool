@@ -1,11 +1,11 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
+import { ResourceError, useApiList } from "@/components/data-view";
 import { TestCaseActions } from "@/components/test-case-actions";
-import { unwrapList } from "@/lib/api";
-import { serverApi as api } from "@/lib/server-api";
 import { Badge, EmptyState } from "@testpilot/ui";
 import Link from "next/link";
-
-export const dynamic = "force-dynamic";
+import { useParams } from "next/navigation";
 
 type TestCase = {
   id: string;
@@ -15,19 +15,9 @@ type TestCase = {
   riskLevel: string;
 };
 
-export default async function TestCasesPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  let cases: TestCase[] = [];
-  let error = "";
-  try {
-    cases = unwrapList<TestCase>(await api(`/projects/${id}/test-cases`));
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load test cases";
-  }
+export default function TestCasesPage() {
+  const { id } = useParams<{ id: string }>();
+  const cases = useApiList<TestCase>(`/projects/${id}/test-cases`);
 
   return (
     <AppShell>
@@ -37,9 +27,11 @@ export default async function TestCasesPage({
           <h1>Test cases</h1>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Unable to load test cases" description={error} />
-      ) : cases.length === 0 ? (
+      {cases.loading ? (
+        <p className="subtle">Loading test cases…</p>
+      ) : cases.error ? (
+        <ResourceError message={cases.error} retry={cases.reload} />
+      ) : !cases.data?.length ? (
         <EmptyState
           title="No test cases"
           description="Generate a plan from requirements to create reviewable cases."
@@ -56,7 +48,7 @@ export default async function TestCasesPage({
             </tr>
           </thead>
           <tbody>
-            {cases.map((item) => (
+            {cases.data.map((item) => (
               <tr key={item.id}>
                 <td>
                   <Link href={`/projects/${id}/test-cases/${item.id}`}>

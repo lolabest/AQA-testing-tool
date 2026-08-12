@@ -4,32 +4,8 @@ import { FormEvent, useState } from "react";
 
 import { Button, Field, Input } from "@testpilot/ui";
 
-function postLoginPath(): string {
-  const params = new URLSearchParams(window.location.search);
-  let target = params.get("next") ?? "/";
-  if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/sign-in")) {
-    target = "/";
-  }
-  if (target.includes(":") && !target.startsWith("/?")) {
-    // Guard against corrupted paths like `/sign-in:?_ingress_token=...`
-    target = "/";
-  }
-
-  const ingress = params.get("_ingress_token");
-  const url = new URL(target, window.location.origin);
-  if (
-    url.pathname === "/sign-in" ||
-    url.pathname.startsWith("/sign-in/") ||
-    url.pathname.includes(":")
-  ) {
-    url.pathname = "/";
-    url.search = "";
-  }
-  if (ingress && !url.searchParams.has("_ingress_token")) {
-    url.searchParams.set("_ingress_token", ingress);
-  }
-  return `${url.pathname}${url.search}`;
-}
+import { setClientAccessToken } from "@/lib/client-session";
+import { sanitizeNextPath } from "@/lib/session-cookie";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("qa@testpilot.local");
@@ -46,12 +22,12 @@ export default function SignInPage() {
       const response = await fetch("/api/auth/sign-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
         body: JSON.stringify({ email, password }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         message?: string;
         error?: string;
+        accessToken?: string;
       };
 
       if (!response.ok) {
@@ -64,8 +40,18 @@ export default function SignInPage() {
         throw new Error(detail ?? "Sign-in failed.");
       }
 
-      // Full navigation so the newly set session cookie is always applied.
-      window.location.assign(postLoginPath());
+      if (!payload.accessToken) {
+        throw new Error("Sign-in succeeded but no access token was returned.");
+      }
+
+      setClientAccessToken(payload.accessToken);
+
+      const params = new URLSearchParams(window.location.search);
+      const target = sanitizeNextPath(
+        params.get("next"),
+        params.get("_ingress_token"),
+      );
+      window.location.assign(target);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
       setSubmitting(false);

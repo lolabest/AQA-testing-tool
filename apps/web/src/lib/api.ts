@@ -1,3 +1,9 @@
+import {
+  clearClientAccessToken,
+  getClientAccessToken,
+  signInRedirectPath,
+} from "./client-session";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -37,11 +43,13 @@ export async function api<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  const token = getClientAccessToken();
   const response = await fetch(`/api/proxy/${apiPath(path)}`, {
     ...options,
     headers: {
       Accept: "application/json",
       ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -55,12 +63,8 @@ export async function api<T>(
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
-      const ingress = new URLSearchParams(window.location.search).get(
-        "_ingress_token",
-      );
-      const params = new URLSearchParams({ reason: "session" });
-      if (ingress) params.set("_ingress_token", ingress);
-      window.location.assign(`/sign-in?${params.toString()}`);
+      clearClientAccessToken();
+      window.location.assign(signInRedirectPath());
     }
     throw new ApiError(
       messageFromPayload(payload, `Request failed (${response.status})`),
@@ -114,5 +118,8 @@ export function unwrapObject<T extends object>(payload: unknown): T {
 }
 
 export function eventStreamUrl(path: string): string {
-  return `/api/proxy/${apiPath(path)}`;
+  const url = new URL(`/api/proxy/${apiPath(path)}`, window.location.origin);
+  const token = getClientAccessToken();
+  if (token) url.searchParams.set("access_token", token);
+  return `${url.pathname}${url.search}`;
 }

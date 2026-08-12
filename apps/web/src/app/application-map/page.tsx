@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { dateText } from "@/components/data-view";
-import { unwrapList } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
+import { ResourceError, dateText } from "@/components/data-view";
+import { api, unwrapList } from "@/lib/api";
 import { EmptyState } from "@testpilot/ui";
 
 type Project = { id: string; key: string; name: string };
@@ -15,27 +18,65 @@ type ApplicationMap = {
   environment?: { name?: string; kind?: string } | null;
 };
 
-export default async function ApplicationMapPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ projectId?: string }>;
-}) {
-  const requestedProjectId = (await searchParams).projectId;
-  let projects: Project[] = [];
-  let maps: ApplicationMap[] = [];
-  let error = "";
-  let projectId = requestedProjectId;
-  try {
-    projects = unwrapList<Project>(await serverApi("/projects"));
-    projectId = requestedProjectId ?? projects[0]?.id;
-    if (projectId) {
-      maps = unwrapList<ApplicationMap>(
-        await serverApi(`/projects/${projectId}/application-maps`),
-      );
-    }
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : "Could not load application maps.";
-  }
+export default function ApplicationMapPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell>
+          <p className="subtle">Loading application maps…</p>
+        </AppShell>
+      }
+    >
+      <ApplicationMapContent />
+    </Suspense>
+  );
+}
+
+function ApplicationMapContent() {
+  const requestedProjectId = useSearchParams().get("projectId") ?? undefined;
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [maps, setMaps] = useState<ApplicationMap[]>([]);
+  const [projectId, setProjectId] = useState<string | undefined>(requestedProjectId);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+
+    void (async () => {
+      try {
+        const nextProjects = unwrapList<Project>(await api("/projects"));
+        const nextProjectId = requestedProjectId ?? nextProjects[0]?.id;
+        const nextMaps = nextProjectId
+          ? unwrapList<ApplicationMap>(
+              await api(`/projects/${nextProjectId}/application-maps`),
+            )
+          : [];
+        if (active) {
+          setProjects(nextProjects);
+          setProjectId(nextProjectId);
+          setMaps(nextMaps);
+        }
+      } catch (caught) {
+        if (active) {
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : "Could not load application maps.",
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [requestedProjectId, revision]);
 
   return (
     <AppShell>
@@ -65,8 +106,10 @@ export default async function ApplicationMapPage({
           </div>
         ) : null}
       </header>
-      {error ? (
-        <EmptyState title="Application maps unavailable" description={error} />
+      {loading ? (
+        <p className="subtle">Loading application maps…</p>
+      ) : error ? (
+        <ResourceError message={error} retry={() => setRevision((value) => value + 1)} />
       ) : !projectId ? (
         <EmptyState
           title="No project selected"

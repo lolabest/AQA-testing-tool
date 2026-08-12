@@ -51,9 +51,11 @@ pnpm --filter @testpilot/web dev
 Do not confuse the platform login with the demo shop (SUT) on port 3002
 (`user@demo.local` / `User123!`).
 
-If you are using the Cloud Agent HTTPS preview and sign-in keeps returning you
-to the login page, hard-refresh once after pulling the latest web changes. The
-session cookie must be set with `Secure; SameSite=None` behind the ingress.
+Cloud Agent HTTPS port previews strip Cookie headers before they reach the
+app. TestPilot stores the session JWT in `sessionStorage` (`testpilot_access_token`)
+and sends it as an `Authorization` bearer token through `/api/proxy`. If sign-in
+appears to succeed but you bounce back to login, hard-refresh so the latest
+client bundle loads, then sign in again with the seeded credentials.
 
 ## Runs stuck in QUEUED
 

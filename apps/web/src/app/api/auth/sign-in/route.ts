@@ -74,7 +74,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = NextResponse.json({ authenticated: true });
+    // Return the token in the body: Cloud Agent ingress strips Cookie headers,
+    // so the browser must persist the session in sessionStorage instead.
+    const response = NextResponse.json({ authenticated: true, accessToken: token });
     response.cookies.set(
       SESSION_COOKIE,
       token,

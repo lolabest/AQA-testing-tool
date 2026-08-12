@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@testpilot/ui";
 
 import { api, unwrapObject } from "@/lib/api";
+import {
+  clearClientAccessToken,
+  getClientAccessToken,
+  signInRedirectPath,
+} from "@/lib/client-session";
 
 type CurrentUser = {
   displayName?: string;
@@ -45,7 +50,6 @@ const projectSections = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [workspaceName, setWorkspaceName] = useState("Workspace");
   const [apiStatus, setApiStatus] = useState<"checking" | "connected" | "unavailable">(
     "checking",
@@ -58,6 +62,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
+    if (!getClientAccessToken()) {
+      window.location.assign(signInRedirectPath());
+      return;
+    }
+
     let active = true;
     api<CurrentUser>("/auth/me")
       .then((payload) => {
@@ -100,8 +109,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/sign-out", { method: "POST" });
     } finally {
-      router.replace("/sign-in");
-      router.refresh();
+      clearClientAccessToken();
+      window.location.assign(signInRedirectPath());
     }
   }
 

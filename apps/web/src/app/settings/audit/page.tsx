@@ -1,8 +1,10 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
-import { dateText } from "@/components/data-view";
-import { unwrapList, unwrapObject } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
+import { ResourceError, dateText } from "@/components/data-view";
+import { api, unwrapList, unwrapObject } from "@/lib/api";
 import { EmptyState } from "@testpilot/ui";
+import { useEffect, useState } from "react";
 
 type CurrentUser = {
   memberships?: Array<{ workspace?: { id?: string } }>;
@@ -17,19 +19,43 @@ type AuditEvent = {
   actor?: { displayName?: string; email?: string } | null;
 };
 
-export default async function AuditPage() {
-  let events: AuditEvent[] = [];
-  let error = "";
-  try {
-    const currentUser = unwrapObject<CurrentUser>(await serverApi("/auth/me"));
-    const workspaceId = currentUser.memberships?.[0]?.workspace?.id;
-    if (!workspaceId) throw new Error("No active workspace membership was found.");
-    events = unwrapList<AuditEvent>(
-      await serverApi(`/workspaces/${workspaceId}/audit-log?page=1&pageSize=50`),
-    );
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : "Could not load the audit log.";
-  }
+export default function AuditPage() {
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+
+    void (async () => {
+      try {
+        const currentUser = unwrapObject<CurrentUser>(await api("/auth/me"));
+        const workspaceId = currentUser.memberships?.[0]?.workspace?.id;
+        if (!workspaceId) {
+          throw new Error("No active workspace membership was found.");
+        }
+        const nextEvents = unwrapList<AuditEvent>(
+          await api(`/workspaces/${workspaceId}/audit-log?page=1&pageSize=50`),
+        );
+        if (active) setEvents(nextEvents);
+      } catch (caught) {
+        if (active) {
+          setError(
+            caught instanceof Error ? caught.message : "Could not load the audit log.",
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [revision]);
 
   return (
     <AppShell>
@@ -40,8 +66,10 @@ export default async function AuditPage() {
           <p className="lede">Security-relevant actions recorded for this workspace.</p>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Audit log unavailable" description={error} />
+      {loading ? (
+        <p className="subtle">Loading audit log…</p>
+      ) : error ? (
+        <ResourceError message={error} retry={() => setRevision((value) => value + 1)} />
       ) : events.length === 0 ? (
         <EmptyState
           title="No audit events"

@@ -1,8 +1,10 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
-import { Status } from "@/components/data-view";
-import { unwrapList, unwrapObject } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
+import { ResourceError, Status } from "@/components/data-view";
+import { api, unwrapList, unwrapObject } from "@/lib/api";
 import { EmptyState } from "@testpilot/ui";
+import { useEffect, useState } from "react";
 
 type CurrentUser = {
   memberships?: Array<{ workspace?: { id?: string; name?: string } }>;
@@ -20,21 +22,45 @@ type Member = {
   };
 };
 
-export default async function MembersPage() {
-  let members: Member[] = [];
-  let workspaceName = "Workspace";
-  let error = "";
-  try {
-    const currentUser = unwrapObject<CurrentUser>(await serverApi("/auth/me"));
-    const workspace = currentUser.memberships?.[0]?.workspace;
-    workspaceName = workspace?.name ?? workspaceName;
-    if (!workspace?.id) throw new Error("No active workspace membership was found.");
-    members = unwrapList<Member>(
-      await serverApi(`/workspaces/${workspace.id}/members`),
-    );
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : "Could not load members.";
-  }
+export default function MembersPage() {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [workspaceName, setWorkspaceName] = useState("Workspace");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+
+    void (async () => {
+      try {
+        const currentUser = unwrapObject<CurrentUser>(await api("/auth/me"));
+        const workspace = currentUser.memberships?.[0]?.workspace;
+        if (!workspace?.id) {
+          throw new Error("No active workspace membership was found.");
+        }
+        const nextMembers = unwrapList<Member>(
+          await api(`/workspaces/${workspace.id}/members`),
+        );
+        if (active) {
+          setWorkspaceName(workspace.name ?? "Workspace");
+          setMembers(nextMembers);
+        }
+      } catch (caught) {
+        if (active) {
+          setError(caught instanceof Error ? caught.message : "Could not load members.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [revision]);
 
   return (
     <AppShell>
@@ -45,8 +71,10 @@ export default async function MembersPage() {
           <p className="lede">Workspace access and assigned quality roles.</p>
         </div>
       </header>
-      {error ? (
-        <EmptyState title="Members unavailable" description={error} />
+      {loading ? (
+        <p className="subtle">Loading members…</p>
+      ) : error ? (
+        <ResourceError message={error} retry={() => setRevision((value) => value + 1)} />
       ) : members.length === 0 ? (
         <EmptyState
           title="No members"
