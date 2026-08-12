@@ -55,7 +55,12 @@ export async function api<T>(
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
-      window.location.assign("/sign-in?reason=session");
+      const ingress = new URLSearchParams(window.location.search).get(
+        "_ingress_token",
+      );
+      const params = new URLSearchParams({ reason: "session" });
+      if (ingress) params.set("_ingress_token", ingress);
+      window.location.assign(`/sign-in?${params.toString()}`);
     }
     throw new ApiError(
       messageFromPayload(payload, `Request failed (${response.status})`),

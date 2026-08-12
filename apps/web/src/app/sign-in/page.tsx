@@ -1,12 +1,37 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { Button, Field, Input } from "@testpilot/ui";
 
+function postLoginPath(): string {
+  const params = new URLSearchParams(window.location.search);
+  let target = params.get("next") ?? "/";
+  if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/sign-in")) {
+    target = "/";
+  }
+  if (target.includes(":") && !target.startsWith("/?")) {
+    // Guard against corrupted paths like `/sign-in:?_ingress_token=...`
+    target = "/";
+  }
+
+  const ingress = params.get("_ingress_token");
+  const url = new URL(target, window.location.origin);
+  if (
+    url.pathname === "/sign-in" ||
+    url.pathname.startsWith("/sign-in/") ||
+    url.pathname.includes(":")
+  ) {
+    url.pathname = "/";
+    url.search = "";
+  }
+  if (ingress && !url.searchParams.has("_ingress_token")) {
+    url.searchParams.set("_ingress_token", ingress);
+  }
+  return `${url.pathname}${url.search}`;
+}
+
 export default function SignInPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("qa@testpilot.local");
   const [password, setPassword] = useState("TestPilot1!");
   const [error, setError] = useState("");
@@ -21,6 +46,7 @@ export default function SignInPage() {
       const response = await fetch("/api/auth/sign-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ email, password }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
@@ -38,24 +64,10 @@ export default function SignInPage() {
         throw new Error(detail ?? "Sign-in failed.");
       }
 
-      const params = new URLSearchParams(window.location.search);
-      let target = params.get("next") ?? "/";
-      if (!target.startsWith("/")) {
-        target = "/";
-      }
-      const ingress = params.get("_ingress_token");
-      if (ingress) {
-        const url = new URL(target, window.location.origin);
-        if (!url.searchParams.has("_ingress_token")) {
-          url.searchParams.set("_ingress_token", ingress);
-        }
-        target = `${url.pathname}${url.search}`;
-      }
-      router.replace(target);
-      router.refresh();
+      // Full navigation so the newly set session cookie is always applied.
+      window.location.assign(postLoginPath());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
-    } finally {
       setSubmitting(false);
     }
   }

@@ -51,6 +51,10 @@ pnpm --filter @testpilot/web dev
 Do not confuse the platform login with the demo shop (SUT) on port 3002
 (`user@demo.local` / `User123!`).
 
+If you are using the Cloud Agent HTTPS preview and sign-in keeps returning you
+to the login page, hard-refresh once after pulling the latest web changes. The
+session cookie must be set with `Secure; SameSite=None` behind the ingress.
+
 ## Runs stuck in QUEUED
 
 Start the worker:

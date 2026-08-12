@@ -1,18 +1,38 @@
 import { NextResponse } from "next/server";
 
 import { API_BASE_URL } from "@/lib/api";
+import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/session-cookie";
 
 type AuthPayload = {
   token?: string;
   accessToken?: string;
   expiresIn?: number;
+  expiresAt?: string;
   data?: {
     token?: string;
     accessToken?: string;
     expiresIn?: number;
+    expiresAt?: string;
   };
   [key: string]: unknown;
 };
+
+function resolveMaxAge(payload: AuthPayload): number {
+  const explicit = payload.expiresIn ?? payload.data?.expiresIn;
+  if (typeof explicit === "number" && Number.isFinite(explicit) && explicit > 0) {
+    return explicit;
+  }
+
+  const expiresAt = payload.expiresAt ?? payload.data?.expiresAt;
+  if (typeof expiresAt === "string") {
+    const ms = Date.parse(expiresAt) - Date.now();
+    if (Number.isFinite(ms) && ms > 1000) {
+      return Math.floor(ms / 1000);
+    }
+  }
+
+  return 60 * 60 * 8;
+}
 
 export async function POST(request: Request) {
   let credentials: unknown;
@@ -55,13 +75,11 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ authenticated: true });
-    response.cookies.set("testpilot_token", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: payload.expiresIn ?? payload.data?.expiresIn ?? 60 * 60 * 8,
-    });
+    response.cookies.set(
+      SESSION_COOKIE,
+      token,
+      sessionCookieOptions(request, resolveMaxAge(payload)),
+    );
     return response;
   } catch {
     return NextResponse.json(
