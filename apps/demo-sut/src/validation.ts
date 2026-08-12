@@ -22,6 +22,10 @@ function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function priceValue(value: unknown): string {
+  return typeof value === "number" ? String(value) : stringValue(value);
+}
+
 export function isValidEmail(value: string): boolean {
   return EMAIL_PATTERN.test(value);
 }
@@ -31,7 +35,7 @@ export function validateProductInput(input: Record<string, unknown>): ProductVal
     name: stringValue(input.name),
     description: stringValue(input.description),
     contactEmail: stringValue(input.contactEmail),
-    price: stringValue(input.price),
+    price: priceValue(input.price),
   };
   const errors: ProductValidationErrors = {};
 

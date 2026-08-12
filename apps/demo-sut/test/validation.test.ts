@@ -35,6 +35,20 @@ describe("validateProductInput", () => {
     });
   });
 
+  it("accepts a numeric price from a JSON request", () => {
+    const result = validateProductInput({
+      name: "Keyboard",
+      description: "Quiet mechanical keyboard",
+      contactEmail: "owner@demo.local",
+      price: 49.95,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.price).toBe(49.95);
+    }
+  });
+
   it("returns required-field messages for an empty form", () => {
     const result = validateProductInput({});
 
