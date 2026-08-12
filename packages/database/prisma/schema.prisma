@@ -476,6 +476,10 @@ model TestCaseVersion {
   riskLevel     RiskLevel
   intent        Json
   tags          Json
+  compiledCode  String?
+  compiledChecksum String?
+  compilerVersion String?
+  schemaVersion String?
   changeSummary String?
   createdAt     DateTime       @default(now())
 
@@ -492,6 +496,7 @@ model TestCaseVersion {
   @@index([workspaceId])
   @@index([testCaseId])
   @@index([createdById])
+  @@index([compiledChecksum])
 }
 
 model TestSuite {
@@ -742,7 +747,10 @@ model FailureAnalysis {
 model HealingProposal {
   id             String                @id @default(uuid()) @db.Uuid
   status         HealingProposalStatus @default(PENDING)
+  originalIntent Json?
   proposedIntent Json
+  evidence       Json                  @default("[]")
+  diff           Json                  @default("[]")
   rationale      String
   confidence     Float
   riskLevel      RiskLevel             @default(MEDIUM)
