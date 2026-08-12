@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local system under test for TestPilot AI end-to-end demonstrations",
   "main": "./dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -14,9 +13,14 @@
     "test": "vitest run",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "fastify": "^5.2.1"
+  },
   "devDependencies": {
     "@types/node": "^22.13.10",
-    "tsx": "^4.20.3",
+    "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^3.0.8"
   }
