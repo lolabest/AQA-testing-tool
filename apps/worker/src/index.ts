@@ -1,22 +1,39 @@
-import { Worker } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { prisma } from "@testpilot/database";
-import { loadConfig } from "./config.js";
-import { handleCompileTests } from "./jobs/compile-tests.js";
-import { handleDiscovery } from "./jobs/discovery.js";
-import { handleExecuteRun } from "./jobs/execute-run.js";
-import { handleGeneratePlan } from "./jobs/generate-plan.js";
-import { handleProposeHealing } from "./jobs/propose-healing.js";
-import { handleTriageFailure } from "./jobs/triage-failure.js";
-import { QUEUE_NAME, type TestPilotJobName } from "./types.js";
+import { workerConfigFromEnv } from "./config.js";
+import { processCompileTests } from "./jobs/compile-tests.js";
+import { processDiscovery } from "./jobs/discovery.js";
+import { processExecuteRun } from "./jobs/execute-run.js";
+import { processGeneratePlan } from "./jobs/generate-plan.js";
+import { processProposeHealing } from "./jobs/propose-healing.js";
+import { processTriageFailure } from "./jobs/triage-failure.js";
+import { ArtifactStorage } from "./storage.js";
+import {
+  QUEUE_NAME,
+  type CompileTestsJob,
+  type DiscoveryJob,
+  type ExecuteRunJob,
+  type GeneratePlanJob,
+  type ProposeHealingJob,
+  type TestPilotJobName,
+  type TriageFailureJob,
+} from "./types.js";
 
-const config = loadConfig();
+const config = workerConfigFromEnv();
 const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+const queue = new Queue(QUEUE_NAME, { connection });
+const storage = new ArtifactStorage(config.s3, config.artifactDirectory);
 
-async function publishProgress(runId: string, event: Record<string, unknown>) {
+async function publishProgress(event: {
+  runId: string;
+  status: string;
+  message: string;
+  timestamp: string;
+}): Promise<void> {
   await connection.publish(
-    `run:${runId}`,
-    JSON.stringify({ ...event, at: new Date().toISOString() }),
+    `run:${event.runId}`,
+    JSON.stringify({ ...event, type: "run.status", at: event.timestamp }),
   );
 }
 
@@ -26,25 +43,32 @@ const worker = new Worker(
     const name = job.name as TestPilotJobName;
     switch (name) {
       case "generate-plan":
-        return handleGeneratePlan(prisma, job.data as never);
+        return processGeneratePlan(prisma, job.data as GeneratePlanJob);
       case "compile-tests":
-        return handleCompileTests(prisma, job.data as never);
+        return processCompileTests(prisma, job.data as CompileTestsJob);
       case "execute-run":
-        return handleExecuteRun({
+        return processExecuteRun(
           prisma,
+          queue,
+          storage,
           config,
-          data: job.data as never,
           publishProgress,
-          queue: worker.opts.connection as never,
-        });
+          job.data as ExecuteRunJob,
+        );
       case "triage-failure":
-        return handleTriageFailure(prisma, job.data as never);
+        return processTriageFailure(
+          prisma,
+          queue,
+          job.data as TriageFailureJob,
+        );
       case "propose-healing":
-        return handleProposeHealing(prisma, job.data as never);
+        return processProposeHealing(prisma, job.data as ProposeHealingJob);
       case "discovery":
-        return handleDiscovery(prisma, config, job.data as never);
-      default:
-        throw new Error(`Unknown job type: ${name}`);
+        return processDiscovery(prisma, config, job.data as DiscoveryJob);
+      default: {
+        const exhaustive: never = name;
+        throw new Error(`Unknown job type: ${String(exhaustive)}`);
+      }
     }
   },
   {
@@ -62,9 +86,10 @@ worker.on("failed", (job, error) => {
 
 console.log(`TestPilot worker listening on queue=${QUEUE_NAME}`);
 
-async function shutdown(signal: string) {
+async function shutdown(signal: string): Promise<void> {
   console.log(`Shutting down worker (${signal})`);
   await worker.close();
+  await queue.close();
   await connection.quit();
   await prisma.$disconnect();
   process.exit(0);
