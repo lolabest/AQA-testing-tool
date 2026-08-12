@@ -37,7 +37,19 @@ Ensure seed ran:
 pnpm db:seed
 ```
 
-Credentials: `qa@testpilot.local` / `TestPilot1!`
+Platform credentials: `qa@testpilot.local` / `TestPilot1!`
+
+If the web UI returns 500 on `/sign-in` or `/api/auth/sign-in` while the API
+(`http://localhost:3001`) still authenticates, clear a corrupted Next.js cache
+and restart the web app:
+
+```bash
+rm -rf apps/web/.next
+pnpm --filter @testpilot/web dev
+```
+
+Do not confuse the platform login with the demo shop (SUT) on port 3002
+(`user@demo.local` / `User123!`).
 
 ## Runs stuck in QUEUED
 
