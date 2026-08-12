@@ -16,18 +16,28 @@ type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
 
+function apiPath(path: string): string {
+  const clean = path.replace(/^\/+/, "");
+  return clean.startsWith("api/v1/") ? clean : `api/v1/${clean}`;
+}
+
 function messageFromPayload(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== "object") return fallback;
   const candidate = payload as Record<string, unknown>;
   const message = candidate.message ?? candidate.error;
-  return typeof message === "string" ? message : fallback;
+  if (typeof message === "string") return message;
+  if (message && typeof message === "object") {
+    const nested = message as Record<string, unknown>;
+    if (typeof nested.message === "string") return nested.message;
+  }
+  return fallback;
 }
 
 export async function api<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const response = await fetch(`/api/proxy/${path.replace(/^\/+/, "")}`, {
+  const response = await fetch(`/api/proxy/${apiPath(path)}`, {
     ...options,
     headers: {
       Accept: "application/json",
@@ -99,5 +109,5 @@ export function unwrapObject<T extends object>(payload: unknown): T {
 }
 
 export function eventStreamUrl(path: string): string {
-  return `/api/proxy/${path.replace(/^\/+/, "")}`;
+  return `/api/proxy/${apiPath(path)}`;
 }

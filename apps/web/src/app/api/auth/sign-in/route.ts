@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const upstream = await fetch(`${API_BASE_URL}/auth/sign-in`, {
+    const upstream = await fetch(`${API_BASE_URL}/api/v1/auth/sign-in`, {
       method: "POST",
       headers: {
         Accept: "application/json",

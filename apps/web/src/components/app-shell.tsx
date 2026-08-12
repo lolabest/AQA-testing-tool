@@ -8,9 +8,9 @@ import { Button } from "@testpilot/ui";
 
 import { api, unwrapObject } from "@/lib/api";
 
-type Workspace = {
-  name?: string;
-  workspace?: { name?: string };
+type CurrentUser = {
+  displayName?: string;
+  memberships?: Array<{ workspace?: { name?: string } }>;
 };
 
 type NavItem = {
@@ -47,6 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [workspaceName, setWorkspaceName] = useState("Workspace");
+  const [apiStatus, setApiStatus] = useState<"checking" | "connected" | "unavailable">(
+    "checking",
+  );
   const [signingOut, setSigningOut] = useState(false);
 
   const projectId = useMemo(() => {
@@ -56,14 +59,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    api<Workspace>("/workspaces/current")
+    api<CurrentUser>("/auth/me")
       .then((payload) => {
-        const result = unwrapObject<Workspace>(payload);
-        const name = result.name ?? result.workspace?.name;
+        const result = unwrapObject<CurrentUser>(payload);
+        const name = result.memberships?.[0]?.workspace?.name;
         if (active && name) setWorkspaceName(name);
+        if (active) setApiStatus("connected");
       })
       .catch(() => {
-        // Page requests surface API errors; the shell retains an honest generic label.
+        if (active) setApiStatus("unavailable");
       });
     return () => {
       active = false;
@@ -152,11 +156,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="workspace-name">{workspaceName}</span>
           </div>
           <div className="topbar-actions">
-            <span className="connection-dot" aria-hidden="true" />
-            <span className="subtle">API connected</span>
+            <span
+              className={`connection-dot connection-dot--${apiStatus}`}
+              aria-hidden="true"
+            />
+            <span className="subtle">
+              {apiStatus === "connected"
+                ? "API connected"
+                : apiStatus === "unavailable"
+                  ? "API unavailable"
+                  : "Checking API"}
+            </span>
           </div>
         </header>
-        <main>{children}</main>
+        <main>
+          <div className="page">{children}</div>
+        </main>
       </div>
     </div>
   );
