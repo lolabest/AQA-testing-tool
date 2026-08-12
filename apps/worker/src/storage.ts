@@ -57,20 +57,27 @@ export class ArtifactStorage {
       .join("/");
     const key = `${keyPrefix}/${safeName}`;
     if (this.client && this.config) {
-      await this.ensureBucket();
-      await this.client.send(
-        new PutObjectCommand({
-          Bucket: this.config.bucket,
-          Key: key,
-          Body: await readFile(artifact.absolutePath),
-          ContentType: artifact.contentType,
-          Metadata: { sha256: artifact.checksum },
-        }),
-      );
-      return {
-        key,
-        storageUrl: `s3://${this.config.bucket}/${key}`,
-      };
+      try {
+        await this.ensureBucket();
+        await this.client.send(
+          new PutObjectCommand({
+            Bucket: this.config.bucket,
+            Key: key,
+            Body: await readFile(artifact.absolutePath),
+            ContentType: artifact.contentType,
+            Metadata: { sha256: artifact.checksum },
+          }),
+        );
+        return {
+          key,
+          storageUrl: `s3://${this.config.bucket}/${key}`,
+        };
+      } catch (error) {
+        console.warn(
+          `[worker] S3 artifact upload failed; using ${this.fallbackDirectory}`,
+          error instanceof Error ? error.message : error,
+        );
+      }
     }
     const root = resolve(this.fallbackDirectory);
     const destination = resolve(root, key);

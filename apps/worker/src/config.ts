@@ -73,7 +73,7 @@ export function workerConfigFromEnv(): WorkerConfig {
   return {
     redisUrl: required("REDIS_URL"),
     concurrency: integerValue("WORKER_CONCURRENCY", 2),
-    demoSutUrl: process.env.DEMO_SUT_URL ?? "http://127.0.0.1:4010",
+    demoSutUrl: process.env.DEMO_SUT_URL ?? "http://127.0.0.1:3002",
     allowPrivateNetworkTargets: booleanValue(
       "ALLOW_PRIVATE_NETWORK_TARGETS",
     ),
