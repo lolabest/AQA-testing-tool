@@ -9,7 +9,17 @@ const compat = new FlatCompat({
   recommendedConfig: js.configs.recommended,
 });
 
-export default [
-  { ignores: [".next/**", "coverage/**", "playwright-report/**", "test-results/**"] },
+const config = [
+  {
+    ignores: [
+      ".next/**",
+      "next-env.d.ts",
+      "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
+    ],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
+
+export default config;
