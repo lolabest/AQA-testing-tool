@@ -20,6 +20,7 @@ let primaryProjectId = "";
 let isolatedProjectId = "";
 let environmentId = "";
 let testCaseId = "";
+let requirementId = "";
 const userIds: string[] = [];
 
 async function signIn(email: string): Promise<string> {
@@ -167,6 +168,20 @@ suite("TestPilot API integration", () => {
       },
     });
     testCaseId = testCase.id;
+    const requirement = await prisma.requirement.create({
+      data: {
+        workspaceId: primary.id,
+        projectId: project.id,
+        key: "REQ-INTEGRATION",
+        title: "Users can open the application",
+        description: "An authenticated user can open the main application page.",
+        acceptanceCriteria: ["The main page is displayed"],
+        riskLevel: "HIGH",
+        createdById: owner.id,
+        updatedById: owner.id,
+      },
+    });
+    requirementId = requirement.id;
 
     app = await buildApp({
       prisma,
@@ -241,6 +256,77 @@ suite("TestPilot API integration", () => {
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({
       error: { code: "NOT_FOUND" },
+    });
+  });
+
+  it("persists generated, approved, compiled, and queued-run records", async () => {
+    const generatedResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${primaryProjectId}/test-plans/generate`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { requirementIds: [requirementId] },
+    });
+    expect(generatedResponse.statusCode).toBe(201);
+    const generated = generatedResponse.json<{
+      id: string;
+      status: string;
+      testCases: Array<{ id: string; status: string }>;
+    }>();
+    expect(generated.status).toBe("GENERATED");
+    expect(generated.testCases.length).toBeGreaterThan(0);
+    const generatedCase = generated.testCases[0]!;
+
+    const validateResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/test-cases/${generatedCase.id}/validate`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+    });
+    expect(validateResponse.statusCode).toBe(200);
+
+    const approveResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/test-cases/${generatedCase.id}/approve`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { note: "Integration approval" },
+    });
+    expect(approveResponse.statusCode).toBe(200);
+    expect(approveResponse.json()).toMatchObject({ status: "APPROVED" });
+
+    const compileResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/test-cases/${generatedCase.id}/compile`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+    });
+    expect(compileResponse.statusCode).toBe(200);
+    const compiled = compileResponse.json<{ code: string; checksum: string }>();
+    expect(compiled.code).toContain("@playwright/test");
+    expect(compiled.checksum).toMatch(/^[\da-f]{64}$/);
+
+    const persistedVersion = await prisma.testCaseVersion.findFirstOrThrow({
+      where: { testCaseId: generatedCase.id },
+      orderBy: { revision: "desc" },
+    });
+    expect(persistedVersion.compiledCode).toBe(compiled.code);
+    expect(persistedVersion.compiledChecksum).toBe(compiled.checksum);
+
+    const runResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${primaryProjectId}/runs`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: {
+        environmentId,
+        testCaseIds: [generatedCase.id],
+      },
+    });
+    expect(runResponse.statusCode).toBe(202);
+    const run = runResponse.json<{ id: string; status: string }>();
+    expect(run.status).toBe("QUEUED");
+    await expect(
+      prisma.testRun.findUniqueOrThrow({ where: { id: run.id } }),
+    ).resolves.toMatchObject({
+      workspaceId: primaryWorkspaceId,
+      projectId: primaryProjectId,
+      status: "QUEUED",
     });
   });
 });
