@@ -128,6 +128,20 @@ export async function processGeneratePlan(
   database: PrismaClient,
   data: GeneratePlanJob,
 ): Promise<{ testPlanId: string; testCaseIds: string[] }> {
+  const queuedPlan = data.planId
+    ? await database.testPlan.findFirstOrThrow({
+        where: {
+          id: data.planId,
+          workspaceId: data.workspaceId,
+          projectId: data.projectId,
+          deletedAt: null,
+        },
+      })
+    : undefined;
+  const jobData = {
+    ...data,
+    createdById: data.createdById ?? queuedPlan?.createdById ?? undefined,
+  };
   const requirements = await database.requirement.findMany({
     where: {
       workspaceId: data.workspaceId,
@@ -157,16 +171,22 @@ export async function processGeneratePlan(
     )
     .join("\n\n");
   let planAudit: AiInvocationRecord | undefined;
+  const planRequest = {
+    requirements: requirementsInput,
+    constraints: data.includeDiscovery
+      ? ["Include exploratory discovery coverage"]
+      : [],
+  };
   const planResult = await generateTestPlan(
-    { requirements: requirementsInput },
+    planRequest,
     { provider, onAudit: (record) => { planAudit = record; } },
   );
   if (!planAudit) throw new Error("AI plan generation did not emit audit data");
   await recordInvocation(
     database,
-    data,
+    jobData,
     "generateTestPlan",
-    { requirements: requirementsInput },
+    planRequest,
     planResult,
     planAudit,
   );
@@ -182,35 +202,45 @@ export async function processGeneratePlan(
   if (!intentAudit) throw new Error("AI intent generation did not emit audit data");
   await recordInvocation(
     database,
-    data,
+    jobData,
     "generateTestIntents",
     { testPlan: planResult, applicationContext: { baseUrl } },
     intentResult,
     intentAudit,
   );
 
-  const plan = await database.testPlan.upsert({
-    where: {
-      projectId_name: { projectId: data.projectId, name: planResult.title },
-    },
-    create: {
-      workspaceId: data.workspaceId,
-      projectId: data.projectId,
-      name: planResult.title,
-      description: planResult.objective,
-      objective: json(planResult.scope),
-      status: "DRAFT",
-      createdById: data.createdById,
-      updatedById: data.createdById,
-    },
-    update: {
-      description: planResult.objective,
-      objective: json(planResult.scope),
-      status: "DRAFT",
-      updatedById: data.createdById,
-      deletedAt: null,
-    },
-  });
+  const plan = queuedPlan
+    ? await database.testPlan.update({
+        where: { id: queuedPlan.id },
+        data: {
+          description: planResult.objective,
+          objective: json(planResult.scope),
+          status: "GENERATED",
+          updatedById: jobData.createdById,
+        },
+      })
+    : await database.testPlan.upsert({
+        where: {
+          projectId_name: { projectId: data.projectId, name: planResult.title },
+        },
+        create: {
+          workspaceId: data.workspaceId,
+          projectId: data.projectId,
+          name: planResult.title,
+          description: planResult.objective,
+          objective: json(planResult.scope),
+          status: "GENERATED",
+          createdById: jobData.createdById,
+          updatedById: jobData.createdById,
+        },
+        update: {
+          description: planResult.objective,
+          objective: json(planResult.scope),
+          status: "GENERATED",
+          updatedById: jobData.createdById,
+          deletedAt: null,
+        },
+      });
 
   const testCaseIds: string[] = [];
   for (const [index, generated] of intentResult.intents.entries()) {
@@ -237,8 +267,8 @@ export async function processGeneratePlan(
         riskLevel: intent.riskLevel,
         intent: json(intent),
         tags: generated.tags,
-        createdById: data.createdById,
-        updatedById: data.createdById,
+        createdById: jobData.createdById,
+        updatedById: jobData.createdById,
       },
       update: {
         testPlanId: plan.id,
@@ -249,7 +279,7 @@ export async function processGeneratePlan(
         riskLevel: intent.riskLevel,
         intent: json(intent),
         tags: generated.tags,
-        updatedById: data.createdById,
+        updatedById: jobData.createdById,
         deletedAt: null,
       },
     });
@@ -271,7 +301,7 @@ export async function processGeneratePlan(
         intent: json(intent),
         tags: generated.tags,
         changeSummary: "AI-generated test intent",
-        createdById: data.createdById,
+        createdById: jobData.createdById,
       },
       update: {
         title: testCase.title,
